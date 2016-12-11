@@ -1,40 +1,103 @@
 #!/usr/bin/python
 
-from flask import Flask, redirect, request, Response, g
+from flask import Flask, redirect, request, Response, g, jsonify
 from flask.ext.cache import Cache 
 
+import datetime
+import json
+import redis
 import time
 import urllib2
 import xml.etree.ElementTree as ET
-
+import pickle
 
 ################
 ##### Configs ##
 ################
-BASE_API_URL = "http://webservices.nextbus.com/service/publicXMLFeed"
 
 app = Flask(__name__)
-app.config['CACHE_TYPE'] = 'simple'
+
+### GLOBAL VARS
+BASE_API_URL = "http://webservices.nextbus.com/service/publicXMLFeed"
+REDIS_SERVER_HOST = 'localhost'
+REDIS_SERVER_PORT = 6379
+REDIS_SERVER_PASSWORD = None
+
+### Cache configuration
+#app.config['CACHE_TYPE'] = 'simple'
+
+app.config['CACHE_TYPE'] = 'redis'
+app.config['CACHE_REDIS_HOST'] = REDIS_SERVER_HOST
+app.config['CACHE_REDIS_PORT'] = REDIS_SERVER_PORT
+app.config['CACHE_REDIS_PASSWORD'] = REDIS_SERVER_PASSWORD
+
 app.cache = Cache(app)
+
+redis_c = redis.Redis(host=REDIS_SERVER_HOST, port=REDIS_SERVER_PORT, password=REDIS_SERVER_PASSWORD)
 
 
 ###############################
 ##### Application API routes ##
 ###############################
 
+
+### Request handlers
 @app.before_request
 def before_request():
 	g.start = time.time()
 
 @app.teardown_request
 def teardown_request(exceptions=None):
-	diff = time.time() - g.start
-	print "'%s', was the time spent to process the URL '%s'" % (diff, request.url)
+	processing_time = time.time() - g.start
+	print "'%s', was the time spent to process the URL '%s'" % (processing_time, request.url)
+	if processing_time > 2:
+		__save_slow_request(request.url, processing_time)
+
+	print "FULL PATH = %s" % request.full_path
+	__incr_endpoint_count(request.full_path)
+
+
+
+### Statistics - Slow Requests
+
+def __save_slow_request(url, time):
+	request_datetime = datetime.datetime.fromtimestamp(int(redis_c.time()[0])).strftime('%Y-%m-%d %H:%M:%S')
+	d = {"url": url, "request_date": request_datetime, "performance_in_seconds": time}
+	redis_c.lpush('slow_requests', pickle.dumps(d))
+
+@app.route('/service/stats/slowRequests')
+def get_slow_requests():
+	slow_requests = []
+	for d in redis_c.lrange('slow_requests', 0, -1):
+		slow_requests.append(pickle.loads(d))
+
+	return jsonify(slow_requests)
+
+
+
+### Statistics - Endpoints
+
+def __incr_endpoint_count(endpoint):
+	redis_c.incr('req_count___%s' % endpoint)
+
+@app.route('/service/stats/endpoints')
+def get_total_number_of_queries():
+	endpoints_counter = []
+	for k in redis_c.keys('req_count*'):
+		endpoint = k.split('___')[1:]
+		d = { 'endpoint': endpoint, 'count': redis_c.get(k)}
+		endpoints_counter.append(d)
+
+	return jsonify(endpoints_counter)
+
+
+
+
+### publicXMLFeed
 
 @app.route('/service/publicXMLFeed')
 def publicXMLFeed():
 	
-
 	#TODO: filter query params to redirect to the extended endpoints, or to just __proxy_pass
 	if request.args.get('command') == 'notRunningRoutes':
 		"""
@@ -102,7 +165,7 @@ An endpoint to retrieve the routes that are not running at a specific time.
 For example, the 6 bus does not run between 1 AM and 5 AM, 
 so the output of a query for 2 AM should include the 6.
 """
-@app.cache.memoize(timeout=5*60)
+#@app.cache.memoize(timeout=5*60)
 def __not_running_routes(agency, min_epochtime, max_epochtime):
 
 	# Check schedules for all routes:
@@ -118,14 +181,14 @@ def __not_running_routes(agency, min_epochtime, max_epochtime):
 	# Remove the routes that are running in that specific time
 	#TODO remove this '[:2]' from the line below
 	for i in xml_element_routes:
-		if is_route_running_at_time(agency, i.attrib['tag'], min_epochtime, max_epochtime):
+		if __is_route_running_at_time(agency, i.attrib['tag'], min_epochtime, max_epochtime):
 			xml_tree.remove(i)
 
 	return xml_tree
 
-@app.cache.memoize(timeout=5*60)
+@app.cache.memoize(timeout=30*60)
 def __get_schedule_for_route(agency, route_tag):
-	url = "http://webservices.nextbus.com/service/publicXMLFeed?command=schedule&a=sf-muni&r=%s" % route_tag
+	url = "http://webservices.nextbus.com/service/publicXMLFeed?command=schedule&a=%s&r=%s" % (agency, route_tag)
 	print "Requesting URL: %s" % url
 	
 	req = urllib2.Request(url)
@@ -133,7 +196,7 @@ def __get_schedule_for_route(agency, route_tag):
 	return content
 
 @app.cache.memoize(timeout=5*60)
-def is_route_running_at_time(agency, route_tag, epoch_time_start, time_range_end):
+def __is_route_running_at_time(agency, route_tag, epoch_time_start, time_range_end):
 
 	content = __get_schedule_for_route(agency, route_tag)
 
