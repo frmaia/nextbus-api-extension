@@ -3,13 +3,13 @@
 from flask import Flask, redirect, request, Response, g, jsonify
 from flask.ext.cache import Cache 
 
-import datetime
+from helpers.ApiManager import ApiManager
+
 import json
 import redis
 import time
 import urllib2
 import xml.etree.ElementTree as ET
-import pickle
 
 ################
 ##### Configs ##
@@ -34,7 +34,7 @@ app.config['CACHE_REDIS_PASSWORD'] = REDIS_SERVER_PASSWORD
 app.cache = Cache(app)
 
 redis_c = redis.Redis(host=REDIS_SERVER_HOST, port=REDIS_SERVER_PORT, password=REDIS_SERVER_PASSWORD)
-
+api_manager = ApiManager(redis_client=redis_c)
 
 ###############################
 ##### Application API routes ##
@@ -50,44 +50,21 @@ def before_request():
 def teardown_request(exceptions=None):
 	processing_time = time.time() - g.start
 	print "'%s', was the time spent to process the URL '%s'" % (processing_time, request.url)
-	if processing_time > 2:
-		__save_slow_request(request.url, processing_time)
+	if processing_time > ApiManager.SLOW_REQUEST_THRESHOLD:
+		api_manager.save_slow_request(request.url, processing_time)
 
 	print "FULL PATH = %s" % request.full_path
-	__incr_endpoint_count(request.full_path)
+	api_manager.incr_endpoint_count(request.full_path)
 
-
-
-### Statistics - Slow Requests
-
-def __save_slow_request(url, time):
-	request_datetime = datetime.datetime.fromtimestamp(int(redis_c.time()[0])).strftime('%Y-%m-%d %H:%M:%S')
-	d = {"url": url, "request_date": request_datetime, "performance_in_seconds": time}
-	redis_c.lpush('slow_requests', pickle.dumps(d))
 
 @app.route('/service/stats/slowRequests')
 def get_slow_requests():
-	slow_requests = []
-	for d in redis_c.lrange('slow_requests', 0, -1):
-		slow_requests.append(pickle.loads(d))
-
+	slow_requests = api_manager.get_slow_requests() 
 	return jsonify(slow_requests)
-
-
-
-### Statistics - Endpoints
-
-def __incr_endpoint_count(endpoint):
-	redis_c.incr('req_count___%s' % endpoint)
 
 @app.route('/service/stats/endpoints')
 def get_total_number_of_queries():
-	endpoints_counter = []
-	for k in redis_c.keys('req_count*'):
-		endpoint = k.split('___')[1:]
-		d = { 'endpoint': endpoint, 'count': redis_c.get(k)}
-		endpoints_counter.append(d)
-
+	endpoints_counter = api_manager.get_total_number_of_queries()
 	return jsonify(endpoints_counter)
 
 
@@ -170,7 +147,7 @@ def __not_running_routes(agency, min_epochtime, max_epochtime):
 
 	# Check schedules for all routes:
 
-	url = "http://webservices.nextbus.com/service/publicXMLFeed?command=routeList&a=%s" % agency
+	url = "%s?command=routeList&a=%s" % (BASE_API_URL, agency)
 	req = urllib2.Request(url)
 	content = urllib2.urlopen(req).read()
 
@@ -188,7 +165,7 @@ def __not_running_routes(agency, min_epochtime, max_epochtime):
 
 @app.cache.memoize(timeout=30*60)
 def __get_schedule_for_route(agency, route_tag):
-	url = "http://webservices.nextbus.com/service/publicXMLFeed?command=schedule&a=%s&r=%s" % (agency, route_tag)
+	url = "%s?command=schedule&a=%s&r=%s" % (BASE_API_URL, agency, route_tag)
 	print "Requesting URL: %s" % url
 	
 	req = urllib2.Request(url)
