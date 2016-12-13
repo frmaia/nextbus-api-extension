@@ -1,0 +1,23 @@
+lb:
+  image: dockercloud/haproxy
+  links:
+   - web
+  volumes:
+   - /var/run/docker.sock:/var/run/docker.sock
+  ports:
+   - "80:80"
+
+web:
+  build: .
+  command: gunicorn -w 4 -b 0.0.0.0:5000 app:app
+  ports:
+   - "5000"
+  volumes:
+   - .:/nextbust-extension-api
+  links:
+   - redis
+  restart: always
+
+redis:
+  image: redis
+
