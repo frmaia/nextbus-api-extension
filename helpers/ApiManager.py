@@ -1,13 +1,14 @@
 import datetime
 import pickle
+import redis
 
 class ApiManager:
 
-	SLOW_REQUEST_THRESHOLD = 2 # in seconds
-
 	def __init__(self, redis_client):
 		self.redis_c = redis_client
-		
+	
+	def __init__(self, redis_host, redis_port, redis_password):
+		self.redis_c = redis.Redis(host=redis_host, port=redis_port, password=redis_password)
 
 	def save_slow_request(self, url, time):
 		request_datetime = datetime.datetime.fromtimestamp(int(self.redis_c.time()[0])).strftime('%Y-%m-%d %H:%M:%S')

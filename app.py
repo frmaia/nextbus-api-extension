@@ -1,7 +1,8 @@
 #!/usr/bin/python
 
 from flask import Flask, redirect, request, Response, g, jsonify
-from flask.ext.cache import Cache 
+#from flask.ext.cache import Cache 
+from flask_cache import Cache
 
 from helpers.ApiManager import ApiManager
 
@@ -16,25 +17,10 @@ import xml.etree.ElementTree as ET
 ################
 
 app = Flask(__name__)
-
-### GLOBAL VARS
-BASE_API_URL = "http://webservices.nextbus.com/service/publicXMLFeed"
-REDIS_SERVER_HOST = 'localhost'
-REDIS_SERVER_PORT = 6379
-REDIS_SERVER_PASSWORD = None
-
-### Cache configuration
-#app.config['CACHE_TYPE'] = 'simple'
-
-app.config['CACHE_TYPE'] = 'redis'
-app.config['CACHE_REDIS_HOST'] = REDIS_SERVER_HOST
-app.config['CACHE_REDIS_PORT'] = REDIS_SERVER_PORT
-app.config['CACHE_REDIS_PASSWORD'] = REDIS_SERVER_PASSWORD
-
+app.config.from_object('config')
 app.cache = Cache(app)
+api_manager = ApiManager(redis_host=app.config['REDIS_SERVER_HOST'], redis_port=app.config['REDIS_SERVER_PORT'], redis_password=app.config['REDIS_SERVER_PASSWORD'])
 
-redis_c = redis.Redis(host=REDIS_SERVER_HOST, port=REDIS_SERVER_PORT, password=REDIS_SERVER_PASSWORD)
-api_manager = ApiManager(redis_client=redis_c)
 
 ###############################
 ##### Application API routes ##
@@ -45,16 +31,16 @@ api_manager = ApiManager(redis_client=redis_c)
 @app.before_request
 def before_request():
 	g.start = time.time()
+	api_manager.incr_endpoint_count(request.full_path)
+
 
 @app.teardown_request
 def teardown_request(exceptions=None):
 	processing_time = time.time() - g.start
 	print "'%s', was the time spent to process the URL '%s'" % (processing_time, request.url)
-	if processing_time > ApiManager.SLOW_REQUEST_THRESHOLD:
+	if processing_time > app.config['SLOW_REQUEST_THRESHOLD']:
 		api_manager.save_slow_request(request.url, processing_time)
 
-	print "FULL PATH = %s" % request.full_path
-	api_manager.incr_endpoint_count(request.full_path)
 
 
 @app.route('/service/stats/slowRequests')
@@ -104,7 +90,7 @@ def publicXMLFeed():
 	Apply a redirect to the original API
 	"""
 	query_strings = "?" + request.query_string if request.query_string else ""
-	url = "%s%s" % (BASE_API_URL, query_strings)
+	url = "%s%s" % (app.config['NEXTBUS_API_BASE_URL'], query_strings)
 	return __proxy_pass(url)
 
 
@@ -114,7 +100,7 @@ def publicXMLFeed():
 
 
 """
-Proxy pass requests to the 'BASE_API_URL'
+Proxy pass requests to the NEXTBUS_API_BASE_URL'
 """
 @app.cache.memoize(timeout=30)
 def __proxy_pass(url):
@@ -147,7 +133,7 @@ def __not_running_routes(agency, min_epochtime, max_epochtime):
 
 	# Check schedules for all routes:
 
-	url = "%s?command=routeList&a=%s" % (BASE_API_URL, agency)
+	url = "%s?command=routeList&a=%s" % (app.config['NEXTBUS_API_BASE_URL'], agency)
 	req = urllib2.Request(url)
 	content = urllib2.urlopen(req).read()
 
@@ -165,7 +151,7 @@ def __not_running_routes(agency, min_epochtime, max_epochtime):
 
 @app.cache.memoize(timeout=30*60)
 def __get_schedule_for_route(agency, route_tag):
-	url = "%s?command=schedule&a=%s&r=%s" % (BASE_API_URL, agency, route_tag)
+	url = "%s?command=schedule&a=%s&r=%s" % (app.config['NEXTBUS_API_BASE_URL'], agency, route_tag)
 	print "Requesting URL: %s" % url
 	
 	req = urllib2.Request(url)
@@ -186,4 +172,5 @@ def __is_route_running_at_time(agency, route_tag, epoch_time_start, time_range_e
 
 
 if __name__ == '__main__':
-	app.run(debug=True)
+	app.run(debug=True, threaded=True, host='0.0.0.0')
+	
