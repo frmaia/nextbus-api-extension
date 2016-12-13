@@ -3,7 +3,7 @@
 This is a small project that extends the [NextBus API](http://www.nextbus.com/xmlFeedDocs/NextBusXMLFeed.pdf). In addition to doing a proxy pass to the endpoints officially documented, the following endpoints are implemented through this extension.
 
 #### Query string 'command' extensions:
-- /service/publicXMLFeed?command=**notRunningRoutes**&**hour**<from 0 to 23>&a=<agency tag> 
+- /service/publicXMLFeed?command=**notRunningRoutes**&**hour**`<from 0 to 23`>&a=`<agency tag`> 
   - Query string command: 'notRunningRoutes', combined with 'hour', will return a list of all routes that haven't any scheduled run at that whole hour.
 
 ##### Requests examples:
@@ -17,12 +17,11 @@ This is a small project that extends the [NextBus API](http://www.nextbus.com/xm
   - Returns a list of requests which response time exceeds the value SLOW_REQUEST_THRESHOLD (in seconds), specified in [config.py](./config.py).
 
 ##### Requests examples:
-- http://localhost//service/stats/endpoints
-- http://localhost//service/stats/slowRequests
+- http://localhost/service/stats/endpoints
+- http://localhost/service/stats/slowRequests
 
 
 ## Architecture
-Used technologies ```docker``` ```haproxy``` ```python/flask``` ```redis``` 
 - ```docker``` is used for infrastructure provisioning
 - ```haproxy``` is used for Load Balancing
 - ```python/flask``` is the framework used to build the application
