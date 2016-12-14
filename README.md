@@ -24,8 +24,38 @@ This is a small project that extends the [NextBus API](http://www.nextbus.com/xm
 ## Architecture
 - ```docker``` is used for infrastructure provisioning
 - ```haproxy``` is used for Load Balancing
-- ```python/flask``` is the framework used to build the application
-- ```redis``` is used as database, storing some application data structures, and also as support point for application caching
+- ```python/flask``` is the framework used to build the web application
+- ```redis``` is an in memory database, used for application cache and for storing some data-structures used by the [API Manager](./nextbus-application/helpers/ApiManager.py)
+
+```
+
+            +---------------+
+            |               |
+      +-----+    HAPROXY    +------+
+      |     |               |      |
+      |     +-------+-------+      |
+      |             |              |
+      |             |              |
+      |             |              |
++-----+-------------+--------------+----+
+|                                       |
+|  Scaled   +-----+  +-----+  +-----+   |
+|           |     |  |     |  |     |   |
+|   Web     | WEB |  | WEB |  | WEB |   |
+|           |     |  |     |  |     |   |
+| Services  +-----+  +-----+  +-----+   |
+|                                       |
++-----+--------+--------+----------+----+
+      |        |        |          |
+      |        |        |          |
+      |        |        |          |
+      |      +-+--------+---+      |
+      |      |              |      |
+      +------+     REDIS    +------+
+             |              |
+             +--------------+
+
+```
 
 
 ### Run:
