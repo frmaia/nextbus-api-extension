@@ -156,7 +156,7 @@ def __get_schedule_for_route(agency, route_tag):
 
 @app.cache.memoize(timeout=5*60) # cached by 5 minutes
 def __is_route_running_at_time(agency, route_tag, epoch_time_start, time_range_end):
-	app.logger.debug("Verifying route %s" % route_tag)
+	app.logger.debug("Verifying schedules for agency: '%s, 'route '%s'" % (agency,route_tag))
 	content = __get_schedule_for_route(agency, route_tag)
 
 	xml_tree = ET.fromstring(content)

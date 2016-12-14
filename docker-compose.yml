@@ -13,7 +13,7 @@ web:
   ports:
    - "5000"
   volumes:
-   - .:/nextbust-extension-api
+   - ./nextbus-application:/nextbust-extension-api
   links:
    - redis
   restart: always

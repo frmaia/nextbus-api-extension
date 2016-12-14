@@ -3,6 +3,6 @@ MAINTAINER Felipe Maia "frmaia.br@gmail.com"
 
 RUN apt-get update -y 
 
-ADD . /nextbust-extension-api
+ADD ./nextbus-application /nextbust-extension-api
 WORKDIR /nextbust-extension-api
 RUN pip install -r requirements.txt
