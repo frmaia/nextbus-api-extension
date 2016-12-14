@@ -14,7 +14,7 @@ This is a small project that extends the [NextBus API](http://www.nextbus.com/xm
 - **/service/stats/endpoints**
   - Returns a JSON with the total number of queries made to each of the endpoints in this API.
 - **/service/stats/slowRequests**
-  - Returns a list of requests which response time exceeds the value SLOW_REQUEST_THRESHOLD (in seconds), specified in [config.py](./config.py).
+  - Returns a list of requests which response time exceeds the value SLOW_REQUEST_THRESHOLD (in seconds), specified in [config.py](./nextbus-application/config.py).
 
 ##### Requests examples:
 - http://localhost/service/stats/endpoints
