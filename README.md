@@ -7,8 +7,8 @@ This is a small project that extends the [NextBus API](http://www.nextbus.com/xm
   - Query string command: 'notRunningRoutes', combined with 'hour', will return a list of all routes that haven't any scheduled run at that whole hour.
 
 ##### Requests examples:
-- http://localhost/service/publicXMLFeed?command=notRunningRoutes&a=sf-muni&r=N&hour=20
-- http://localhost/service/publicXMLFeed?command=notRunningRoutes&a=sf-muni&r=N&hour=3
+- http://localhost/service/publicXMLFeed?command=notRunningRoutes&a=sf-muni&hour=20
+- http://localhost/service/publicXMLFeed?command=notRunningRoutes&a=sf-muni&hour=3
 
 #### New Endpoints:
 - **/service/stats/endpoints**

@@ -1,7 +1,6 @@
 #!/usr/bin/python
 
 from flask import Flask, redirect, request, Response, g, jsonify
-#from flask.ext.cache import Cache 
 from flask_cache import Cache
 
 from helpers.ApiManager import ApiManager
@@ -37,8 +36,8 @@ def before_request():
 @app.teardown_request
 def teardown_request(exceptions=None):
 	processing_time = time.time() - g.start
-	print "'%s', was the time spent to process the URL '%s'" % (processing_time, request.url)
 	if processing_time > app.config['SLOW_REQUEST_THRESHOLD']:
+		app.logger.warn("'%s', was the time spent to process the URL '%s'" % (processing_time, request.url))
 		api_manager.save_slow_request(request.url, processing_time)
 
 
@@ -61,7 +60,6 @@ def get_total_number_of_queries():
 @app.route('/service/publicXMLFeed')
 def publicXMLFeed():
 	
-	#TODO: filter query params to redirect to the extended endpoints, or to just __proxy_pass
 	if request.args.get('command') == 'notRunningRoutes':
 		"""
 		Use the extended method to process the command notRunningRoutes
@@ -128,7 +126,7 @@ An endpoint to retrieve the routes that are not running at a specific time.
 For example, the 6 bus does not run between 1 AM and 5 AM, 
 so the output of a query for 2 AM should include the 6.
 """
-#@app.cache.memoize(timeout=5*60)
+@app.cache.memoize(timeout=30) # cached for 30 seconds
 def __not_running_routes(agency, min_epochtime, max_epochtime):
 
 	# Check schedules for all routes:
@@ -140,27 +138,25 @@ def __not_running_routes(agency, min_epochtime, max_epochtime):
 	xml_tree = ET.fromstring(content)
 	xml_element_routes = xml_tree.getchildren()
 
-
 	# Remove the routes that are running in that specific time
-	#TODO remove this '[:2]' from the line below
 	for i in xml_element_routes:
-		if __is_route_running_at_time(agency, i.attrib['tag'], min_epochtime, max_epochtime):
-			xml_tree.remove(i)
+		if 'tag' in i.attrib and __is_route_running_at_time(agency, i.attrib['tag'], min_epochtime, max_epochtime):
+				xml_tree.remove(i)
 
 	return xml_tree
 
-@app.cache.memoize(timeout=30*60)
+@app.cache.memoize(timeout=30*60) # cached by 30 minutes
 def __get_schedule_for_route(agency, route_tag):
 	url = "%s?command=schedule&a=%s&r=%s" % (app.config['NEXTBUS_API_BASE_URL'], agency, route_tag)
-	print "Requesting URL: %s" % url
+	app.logger.debug("Requesting URL: %s" % url)
 	
 	req = urllib2.Request(url)
 	content = urllib2.urlopen(req).read()
 	return content
 
-@app.cache.memoize(timeout=5*60)
+@app.cache.memoize(timeout=5*60) # cached by 5 minutes
 def __is_route_running_at_time(agency, route_tag, epoch_time_start, time_range_end):
-
+	app.logger.debug("Verifying route %s" % route_tag)
 	content = __get_schedule_for_route(agency, route_tag)
 
 	xml_tree = ET.fromstring(content)
@@ -173,4 +169,5 @@ def __is_route_running_at_time(agency, route_tag, epoch_time_start, time_range_e
 
 if __name__ == '__main__':
 	app.run(debug=True, threaded=True, host='0.0.0.0')
-	
+
+
