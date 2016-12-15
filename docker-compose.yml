@@ -4,6 +4,8 @@ lb:
    - web
   volumes:
    - /var/run/docker.sock:/var/run/docker.sock
+  environment:
+   - TIMEOUT=connect 5000, client 300000, server 300000
   ports:
    - "80:80"
 
