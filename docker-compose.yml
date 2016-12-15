@@ -9,7 +9,7 @@ lb:
 
 web:
   build: .
-  command: gunicorn -w 4 -b 0.0.0.0:5000 -t 300 app:app
+  command: gunicorn -w 4 -b 0.0.0.0:5000 -t 600 app:app
   ports:
    - "5000"
   volumes:

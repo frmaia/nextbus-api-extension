@@ -38,7 +38,7 @@ class NextbusApiExtension:
 		print("Getting route list through request: '%s'" % url)
 		req = urllib2.Request(url)
 		content = urllib2.urlopen(req).read()
-		print("Response :'%s'" % content)
+		#print("Response :'%s'" % content)
 
 		#return ET.fromstring(content)
 		xml_tree = ET.fromstring(content)

@@ -152,6 +152,6 @@ def thread_initcache():
 	t.start()
 
 if __name__ == '__main__':
-	thread_initcache()
+	#thread_initcache()
 	app.run(debug=True, threaded=True, host='0.0.0.0')
 
