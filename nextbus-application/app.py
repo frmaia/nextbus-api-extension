@@ -48,8 +48,8 @@ def teardown_request(exceptions=None):
 ### App Caching helpers ###
 ###########################
 
-@app.cache.memoize(timeout=3*60) # cache by 30 minutes
-def caching_proxy_pass(self, url):
+@app.cache.memoize(timeout=30) # cache by 30 minutes
+def caching_proxy_pass(url):
 	return nextbusApi.proxy_pass(url)
 
 @app.cache.memoize(timeout=60*60) # cache by 1 hour
@@ -115,7 +115,7 @@ def publicXMLFeed():
 	### Apply a redirect to the original API
 	###
 	query_strings = "?" + request.query_string if request.query_string else ""
-	return nextbusApi.proxy_pass(query_strings)
+	return caching_proxy_pass(query_strings)
 
 
 #######################
