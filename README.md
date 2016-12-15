@@ -72,7 +72,5 @@ $ docker-compose scale web=5 && docker exec nextbusapiextension_lb_1 /reload.sh
 # -- Scale DOWN
 $ docker-compose scale web=1 && docker exec nextbusapiextension_lb_1 /reload.sh
 ```
-### TODO
-- Apply better error handling --> http://flask.pocoo.org/docs/0.11/errorhandling/
-- build unit and integration tests
-- improve logging --> http://flask.pocoo.org/docs/0.11/errorhandling/
+### What could be improved
+- Build unit and integration tests
