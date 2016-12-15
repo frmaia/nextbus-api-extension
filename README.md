@@ -74,3 +74,4 @@ $ docker-compose scale web=1 && docker exec nextbusapiextension_lb_1 /reload.sh
 ```
 ### What could be improved
 - Build unit and integration tests
+- Improve cache strategy for the very first slow requests
